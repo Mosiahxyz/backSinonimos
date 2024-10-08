@@ -76,26 +76,53 @@
             return res.status(500).json('erro ao deletar o registro...');
         }
     });
+
+    routes.post('/login', async (req, res) => {
+    try {
+        const { email, senha } = req.body;
+
+        // Busca o usuário pelo email no banco de dados
+        const result = await pool.query`SELECT * FROM Usuarios WHERE email = ${email}`;
+
+        // Verifica se o usuário existe e se a senha está correta
+        if (result.recordset.length === 0 || result.recordset[0].senha !== senha) {
+            return res.status(401).json({ message: 'Email ou senha incorretos' });
+        }
+
+        return res.status(200).json({ message: 'Login bem-sucedido' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Erro ao fazer login' });
+    }
+});
+
     
     //ROTAS DO ALUNO ----------------------------
 
-    routes.post('/exportar', async (req,res)=>{//permitir o aluno exportar para txt
-
-        try{
+    routes.post('/exportar', async (req, res) => {
+        try {
             const { filename, redacao } = req.body;
-            const { recordset }  =  exportar(redacao, filename);// código que exporta a redação para txt
-            return res.status(200).json(recordset)
+            
+            // Caminho completo onde o arquivo será salvo no servidor
+            const filePath = path.join(__dirname, 'arquivos', filename);
+    
+            // Exporta o arquivo localmente no servidor
+            await exportar(redacao, filePath);
+    
+            // Envia o arquivo como um download para o navegador
+            return res.download(filePath, (err) => {
+                if (err) {
+                    console.error('Erro ao enviar o arquivo:', err);
+                    res.status(500).send('Erro ao baixar o arquivo');
+                }
+            });
+        } catch (error) {
+            console.error('Erro ao exportar a redação:', error);
+            return res.status(500).json({ error: 'Erro ao exportar a redação' });
         }
-
-        catch{
-            return res.status(501).json('erro')
-        }
-
-    })
-       
+    });
     routes.get('/sinonimos', async (req, res) => {//selecionar todas as palavras e seus sinonimos
         try {
-            
+
             const { recordset } = await pool.query`SELECT * FROM sinonimos;`;
     
             let dicionarioSinonimos = {};
