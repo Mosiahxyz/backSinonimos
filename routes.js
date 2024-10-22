@@ -4,16 +4,63 @@
     import { sqlConfig } from "./config/config.js"
     import sql from 'mssql';
     
+    let x = -1; //não apaga isso, por favor
+
     //conexão com MySql (banco)
     const pool = new sql.ConnectionPool(sqlConfig)
     await pool.connect();
     const routes = express.Router();
+    
+    import { GoogleGenerativeAI } from "@google/generative-ai";
+    const genAI = new GoogleGenerativeAI("AIzaSyBSDk9I_PnmrtcoFHCNWStJFpZZkag3yN0");
 
-    //função de string para txt
-    import exportar from "./functions/fdp.js";
+
+    //chamando a func do gemini
+    async function run(topic) {
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+      
+        const chat = model.startChat({
+          history: [
+            {
+              role: "user",
+              parts: [{ text: "you will write an argumentative essay with four paragraphs. You will bring theoretical references, one for each of the first three paragraphs that is related to the theme and validate the arguments using literature, historical facts, quotes or analysing the consequenses of the social problem for the society using diverse conjunctions to link the ideas. In the last paragraph you will make a proposal to minimize the problem describing who is responsible for that ta errado~ in the country, what should be done, how it can be developed and detail one of the part of the solution. At the end you will mention one of the quotations used to close the thought." }],
+            },
+            {
+              role: "model",
+              parts: [{ text: "Great to meet you. how do you want me to do?" }],
+            },
+          ],
+          
+        });
+      
+        const msg = `Give me essay for the topic '${topic}' write in portuguese`;
+        const result = await chat.sendMessage(msg);
+        const response = result.response;
+        const text = response.text();
+      
+        return text;
+    }
     
-    let x = -1; //não apaga isso, por favor
     
+
+    routes.post('/argumento', async (req,res)=>{//dica dos argumentos
+
+        try{
+
+            const tema = req.body;
+            var temaTexto = JSON.stringify(tema);
+
+            const test = await run(temaTexto);
+            return res.status(200).json(test)
+        }
+
+        catch(error){
+            return res.status(501).json('erro ao inserir redação...')
+        }
+
+    })
+
     //ROTAS DO PROFESSOR ----------------------------
 
     routes.get('/modelos', async (req,res)=>{//exibir os modelos já existentes
@@ -98,28 +145,6 @@
     
     //ROTAS DO ALUNO ----------------------------
 
-    routes.post('/exportar', async (req, res) => {
-        try {
-            const { filename, redacao } = req.body;
-            
-            // Caminho completo onde o arquivo será salvo no servidor
-            const filePath = path.join(__dirname, 'arquivos', filename);
-    
-            // Exporta o arquivo localmente no servidor
-            await exportar(redacao, filePath);
-    
-            // Envia o arquivo como um download para o navegador
-            return res.download(filePath, (err) => {
-                if (err) {
-                    console.error('Erro ao enviar o arquivo:', err);
-                    res.status(500).send('Erro ao baixar o arquivo');
-                }
-            });
-        } catch (error) {
-            console.error('Erro ao exportar a redação:', error);
-            return res.status(500).json({ error: 'Erro ao exportar a redação' });
-        }
-    });
     routes.get('/sinonimos', async (req, res) => {//selecionar todas as palavras e seus sinonimos
         try {
 
